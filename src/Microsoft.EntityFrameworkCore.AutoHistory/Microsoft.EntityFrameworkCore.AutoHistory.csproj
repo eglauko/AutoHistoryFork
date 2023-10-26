@@ -1,23 +1,41 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <Description>A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.</Description>
-    <VersionPrefix>6.0.0</VersionPrefix>
-    <Authors>rigofunc;rigofunc@outlook.com</Authors>
-    <TargetFramework>net6.0</TargetFramework>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <AssemblyName>Microsoft.EntityFrameworkCore.AutoHistory</AssemblyName>
-    <PackageId>Microsoft.EntityFrameworkCore.AutoHistory</PackageId>
-    <PackageTags>Entity Framework Core;entity-framework-core;EF;Data;O/RM;Auto History;auto-history</PackageTags>
-    <PackageProjectUrl>https://github.com/arch/AutoHistory</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/arch/AutoHistory.git</RepositoryUrl>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.0" />
-    <None Include="README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
+
+	<PropertyGroup>
+		<TargetFrameworks>net5.0;net6.0;net7.0</TargetFrameworks>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<LangVersion>latest</LangVersion>
+		<AssemblyName>Microsoft.EntityFrameworkCore.AutoHistoryFork</AssemblyName>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Version>7.0.0-preview-4</Version>
+		<AssemblyVersion>7.0.0</AssemblyVersion>
+		<FileVersion>7.0.0</FileVersion>
+		<Description>A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.</Description>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<DocumentationFile>$(BaseOutputPath)\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<IsPackable>true</IsPackable>
+		<Authors>
+			rigofunc;rigofunc@outlook.com 
+			eglauko;eglauko@hotmail.com
+		</Authors>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageId>Microsoft.EntityFrameworkCore.AutoHistoryFork</PackageId>
+		<PackageTags>Entity Framework Core;entity-framework-core;EF;Data;O/RM;Auto History;auto-history</PackageTags>
+		<PackageProjectUrl>https://github.com/eglauko/AutoHistoryFork</PackageProjectUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryType>git</RepositoryType>
+		<RepositoryUrl>https://github.com/eglauko/AutoHistoryFork.git</RepositoryUrl>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational">
+			<Version Condition=" '$(TargetFramework)' == 'net5.0'">5.0.0</Version>
+			<Version Condition=" '$(TargetFramework)' == 'net6.0'">6.0.0</Version>
+			<Version Condition=" '$(TargetFramework)' == 'net7.0'">7.0.0</Version>
+		</PackageReference>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
 </Project>
