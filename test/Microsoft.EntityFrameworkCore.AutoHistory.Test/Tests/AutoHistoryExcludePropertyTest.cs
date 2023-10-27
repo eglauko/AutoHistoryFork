@@ -1,0 +1,89 @@
+﻿using System.Collections.Generic;
+using System.Linq;
+using Microsoft.EntityFrameworkCore.AutoHistoryTests.Contexts;
+using Xunit;
+
+namespace Microsoft.EntityFrameworkCore.AutoHistoryTests.Tests;
+
+public class AutoHistoryExcludePropertyTest
+{
+    [Fact]
+    public void Entity_Update_AutoHistory_Exclude_Only_Modified_Property_Changed_Test()
+    {
+        using (var db = new BloggingContext())
+        {
+            var blog = new Blog
+            {
+                Url = "http://blogs.msdn.com/adonet",
+                Posts = new List<Post> {
+                    new Post {
+                        Title = "xUnit",
+                        Content = "Post from xUnit test."
+                    }
+                },
+                PrivateURL = "http://www.secret.com"
+            };
+
+            db.Attach(blog);
+            db.SaveChanges();
+
+            blog.PrivateURL = "http://new.secret.com";
+            db.EnsureAutoHistory();
+
+            var count = db.ChangeTracker.Entries().Count(e => e.State == EntityState.Added);
+
+            //No changes are made (excluded is the only property modified)
+            Assert.Equal(0, count);
+        }
+    }
+
+    [Fact]
+    public void Entity_Update_AutoHistory_Exclude_Changed_Test()
+    {
+        using (var db = new BloggingContext())
+        {
+            var blog = new Blog
+            {
+                Url = "http://blogs.msdn.com/adonet",
+                Posts = new List<Post> {
+                    new Post {
+                        Title = "xUnit",
+                        Content = "Post from xUnit test."
+                    }
+                },
+                PrivateURL = "http://www.secret.com"
+            };
+
+            db.Attach(blog);
+            db.SaveChanges();
+
+            blog.PrivateURL = "http://new.secret.com";
+            blog.Posts[0].NumViews = 10;
+            db.EnsureAutoHistory();
+
+            var count = db.ChangeTracker.Entries().Count(e => e.State == EntityState.Added);
+
+            Assert.Equal(1, count);
+        }
+    }
+
+    [Fact]
+    public void Excluded_Entity_Update_AutoHistory_OnlyModified_Changed_Test()
+    {
+        using (var db = new BloggingContext())
+        {
+            var notTracked = new NotTracked { Title = "don't track me" };
+
+            db.Attach(notTracked);
+            db.SaveChanges();
+
+            notTracked.Title = "still not tracked";
+            db.EnsureAutoHistory();
+
+            var count = db.ChangeTracker.Entries().Count(e => e.State == EntityState.Added);
+
+            //No changes are made (entire entity is excluded)
+            Assert.Equal(0, count);
+        }
+    }
+}
