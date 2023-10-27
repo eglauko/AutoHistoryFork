@@ -1,18 +1,22 @@
-# AutoHistory
-A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.
+# AutoHistoryFork
+A plugin for **Microsoft.EntityFrameworkCore** to support automatically recording data changes history.
+
+This fork **works** for added entities and support `.Net5.0`, `.Net6.0` and `.Net7.0`, with their respective EFCore versions.
 
 # How to use
 
-`AutoHistory` will recording all the data changing history in one `Table` named `AutoHistories`, this table will recording data
-`UPDATE`, `DELETE` history.
+`AutoHistoryFork` will recording all the data changing history in one `Table` named `AutoHistories`, this table will recording data
+`UPDATE`, `DELETE` history and, if you want, `ADD` history.
 
-1. Install AutoHistory Package
+This Fork brings two additional fields to the original version: `UserName` and `ApplicationName`.
 
-Run the following command in the `Package Manager Console` to install Microsoft.EntityFrameworkCore.AutoHistory
+1. Install AutoHistoryFork Package
 
-`PM> Install-Package Microsoft.EntityFrameworkCore.AutoHistory`
+Run the following command in the `Package Manager Console` to install Microsoft.EntityFrameworkCore.AutoHistoryFork
 
-2. Enable AutoHistory
+`PM> Install-Package Microsoft.EntityFrameworkCore.AutoHistoryFork`
+
+2. Enable AutoHistoryFork
 
 ```csharp
 public class BloggingContext : DbContext
@@ -71,25 +75,67 @@ public class BloggingContext : DbContext
 {
     public override int SaveChanges()
     {
-        var addedEntities = this.ChangeTracker
-                                .Entries()
-                                .Where(e => e.State == EntityState.Added)
-                                .ToArray(); // remember added entries,
+        var addedEntities = ChangeTracker
+            .Entries()
+            .Where(e => e.State == EntityState.Added)
+            .ToArray(); // remember added entries,
+
+        var hasAdded = addedEntities.Any();
+        IDbContextTransaction transaction = null;
+
+        // if has added entities, begin transaction
+        if (hasAdded)
+            transaction = Database.BeginTransaction();
+
         // before EF Core is assigning valid Ids (it does on save changes, 
         // when ids equal zero) and setting their state to 
         // Unchanged (it does on every save changes)
         this.EnsureAutoHistory();
-        base.SaveChanges();
+        int changes = base.SaveChanges();
 
-        // after "SaveChanges" added enties now have gotten valid ids (if it was necessary)
-        // and the history for them can be ensured and be saved with another "SaveChanges"
-        this.EnsureAddedHistory(addedEntities);
-        base.SaveChanges();
+        if (hasAdded)
+        {
+            // after "SaveChanges" added enties now have gotten valid ids (if it was necessary)
+            // and the history for them can be ensured and be saved with another "SaveChanges"
+            this.EnsureAddedHistory(addedEntities);
+            changes += base.SaveChanges();
+
+            transaction.Commit();
+        }
+
+        return changes;
     }   
 }
 ```
 
+# Use Current User Name
 
+You can use the user name of the current user passing the user name to the `EnsureAutoHistory` method.
+
+```csharp
+public override int SaveChanges()
+{
+    this.EnsureAutoHistory(currentUserName); // currentUserName can be a field of the DbContext
+    return base.SaveChanges();
+}
+```
+
+# Application Name
+
+The application name is defined in the `AutoHistoryOptions` class.
+
+The default value is the name of the entry assembly.
+
+Tu podes configurar o nome da aplicação passando por parâmetro no métod `EnableAutoHistory` do `ModelBuilder`
+ou configurando o `AutoHistoryOptions`.
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    // enable auto history functionality and set the application name
+    modelBuilder.EnableAutoHistory("MyApplicationName");
+}
+```
 
 # Use Custom AutoHistory Entity
 You can use a custom auto history entity by extending the Microsoft.EntityFrameworkCore.AutoHistory class.
@@ -126,10 +172,3 @@ You can now excluded properties from being saved into the AutoHistory tables by 
         public string PrivateURL { get; set; }
     }
 ```
-
-# Integrate AutoHistory into other Package
-
-[Microsoft.EntityFrameworkCore.UnitOfWork](https://github.com/lovedotnet/UnitOfWork) had integrated this package.
-
-
-
