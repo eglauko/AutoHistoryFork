@@ -120,14 +120,22 @@ public override int SaveChanges()
 }
 ```
 
+The `EnsureAddedHistory` method also accepts the name of the current user.
+
+```csharp
+this.EnsureAddedHistory(addedEntities, currentUserName);
+```
+
 # Application Name
 
 The application name is defined in the `AutoHistoryOptions` class.
 
 The default value is the name of the entry assembly.
 
-Tu podes configurar o nome da aplicação passando por parâmetro no métod `EnableAutoHistory` do `ModelBuilder`
-ou configurando o `AutoHistoryOptions`.
+You can configure the application name by passing it as a parameter in the `EnableAutoHistory` extension method for
+`ModelBuilder` or by configuring `AutoHistoryOptions`.
+
+Here's an example:
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
