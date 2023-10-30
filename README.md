@@ -180,3 +180,19 @@ You can now excluded properties from being saved into the AutoHistory tables by 
         public string PrivateURL { get; set; }
     }
 ```
+
+# ChangedHistory class
+
+The `ChangedHistory` class is a dictionary that contains the changed properties of an entity.
+
+The key is the property name and the value is an array os strings that contains the old and new values.
+
+For the added entities, the `ChangedHistory` class contains only the new values, and the array has only one item.
+The same happens for the deleted entities, but the array has only the old values.
+
+For modified entities, the `ChangedHistory` class contains the old and new values, and the array has two items.
+The first item is the old value and the second item is the new value.
+
+The `ChangedHistory` class has a `Serialize` method that returns a JSON string of the dictionary.
+
+Also, has a static `Deserialize` method that returns a `ChangedHistory` object from a JSON string.

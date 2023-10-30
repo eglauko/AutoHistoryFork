@@ -20,6 +20,8 @@ public class HistoryContext : DbContext
 
     public DbSet<Product> Products { get; set; }
 
+    public DbSet<SalesItem> SalesItem { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (optionsBuilder.IsConfigured)
@@ -37,6 +39,10 @@ public class HistoryContext : DbContext
         modelBuilder.Entity<Product>()
             .ToTable("Products")
             .HasKey(p => p.Id);
+
+        modelBuilder.Entity<SalesItem>()
+            .ToTable("SalesItem")
+            .HasKey(s => new { s.SaleId, s.ProductId });
 
         base.OnModelCreating(modelBuilder);
     }
@@ -150,6 +156,17 @@ public class Product
     public int Id { get; private set; }
 
     public string Name { get; set; }
+
+    public decimal Price { get; set; }
+}
+
+public class SalesItem
+{
+    public int SaleId { get; set; }
+
+    public int ProductId { get; set; }
+
+    public int Quantity { get; set; }
 
     public decimal Price { get; set; }
 }

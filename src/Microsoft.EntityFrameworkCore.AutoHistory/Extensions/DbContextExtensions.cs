@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Microsoft.EntityFrameworkCore;
 
@@ -17,6 +20,26 @@ public static class DbContextExtensions
         ApplicationName = AutoHistoryOptions.Instance.ApplicationName,
         Created = AutoHistoryOptions.Instance.DateTimeFactory(),
     };
+
+    private static readonly ConcurrentDictionary<Type, Tuple<bool, string[]>> cache = new();
+    private static readonly ConcurrentDictionary<Type, IReadOnlyList<IProperty>> keysCache = new();
+
+    private static readonly Func<Type, Tuple<bool, string[]>> valueFactory = CreateCache;
+
+    private static Tuple<bool, string[]> CreateCache(Type key)
+    {
+        // Get the ExcludeFromHistoryAttribute attribute for the entity type.
+        bool exclude = key.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any();
+
+        // Get the mapped properties for the entity type.
+        // (include shadow properties, not include navigations & references)
+        var excludedProperties = key.GetProperties()
+                .Where(p => p.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any())
+                .Select(p => p.Name)
+                .ToArray();
+
+        return new Tuple<bool, string[]>(exclude, excludedProperties.ToArray());
+    }
 
     /// <summary>
     /// Ensures the automatic history.
@@ -47,23 +70,22 @@ public static class DbContextExtensions
         }
     }
 
-    internal static TAutoHistory AutoHistory<TAutoHistory>(this EntityEntry entry, Func<TAutoHistory> createHistoryFactory, string userName)
+    internal static TAutoHistory AutoHistory<TAutoHistory>(this EntityEntry entry, 
+        Func<TAutoHistory> createHistoryFactory, 
+        string userName)
         where TAutoHistory : AutoHistory
     {
         if (IsEntityExcluded(entry))
-        {
             return null;
-        }
 
         var properties = GetPropertiesWithoutExcluded(entry);
         if (entry.State == EntityState.Modified && !properties.Any(p => p.IsModified))
-        {
             return null;
-        }
 
         var history = createHistoryFactory();
         history.TableName = entry.Metadata.GetTableName();
         history.UserName = userName;
+        
         switch (entry.State)
         {
             case EntityState.Modified:
@@ -79,19 +101,14 @@ public static class DbContextExtensions
         return history;
     }
 
-    private static bool IsEntityExcluded(EntityEntry entry) =>
-        entry.Metadata.ClrType.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any();
+    private static bool IsEntityExcluded(EntityEntry entry)
+        => cache.GetOrAdd(entry.Metadata.ClrType, valueFactory).Item1;
+        
 
     private static IEnumerable<PropertyEntry> GetPropertiesWithoutExcluded(EntityEntry entry)
     {
-        // Get the mapped properties for the entity type.
-        // (include shadow properties, not include navigations & references)
-        var excludedProperties = entry.Metadata.ClrType.GetProperties()
-                .Where(p => p.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any())
-                .Select(p => p.Name);
-
-        var properties = entry.Properties.Where(f => !excludedProperties.Contains(f.Metadata.Name));
-        return properties;
+        var excludedProperties = cache.GetOrAdd(entry.Metadata.ClrType, valueFactory).Item2;
+        return entry.Properties.Where(f => !excludedProperties.Contains(f.Metadata.Name));
     }
 
     /// <summary>
@@ -133,94 +150,86 @@ public static class DbContextExtensions
         where TAutoHistory : AutoHistory
     {
         if (IsEntityExcluded(entry))
-        {
             return null;
-        }
 
         var properties = GetPropertiesWithoutExcluded(entry);
 
-        dynamic json = new System.Dynamic.ExpandoObject();
+        var changes = new ChangedHistory();
         foreach (var prop in properties)
         {
-            ((IDictionary<string, object>)json)[prop.Metadata.Name] = prop.OriginalValue ?? null;
+            changes[prop.Metadata.Name] = new string[] { prop.OriginalValue?.ToString() };
         }
+
         var history = createHistoryFactory();
         history.TableName = entry.Metadata.GetTableName();
         history.UserName = userName;
         history.RowId = entry.PrimaryKey();
         history.Kind = EntityState.Added;
-        history.Changed = JsonSerializer.Serialize(json, AutoHistoryOptions.Instance.JsonSerializerOptions);
+        history.Changed = changes.Serialize();
         return history;
     }
 
     private static string PrimaryKey(this EntityEntry entry)
     {
-        var key = entry.Metadata.FindPrimaryKey();
+        var keys = keysCache.GetOrAdd(entry.Metadata.ClrType, type => entry.Metadata.FindPrimaryKey().Properties);
 
-        var values = new List<object>();
-        foreach (var property in key.Properties)
+        if (keys.Count == 1)
+            return entry.Property(keys[0].Name).CurrentValue?.ToString() ?? string.Empty;
+
+        var sb = new StringBuilder();
+        for (int i = 0; i < keys.Count; i++)
         {
-            var value = entry.Property(property.Name).CurrentValue;
-            if (value != null)
-            {
-                values.Add(value);
-            }
+            if (i > 0)
+                sb.Append(',');
+            sb.Append(entry.Property(keys[i].Name).CurrentValue?.ToString() ?? string.Empty);
         }
 
-        return string.Join(",", values);
+        return sb.ToString();
     }
 
     private static void WriteHistoryModifiedState(AutoHistory history, EntityEntry entry, IEnumerable<PropertyEntry> properties)
     {
-        dynamic json = new System.Dynamic.ExpandoObject();
-        dynamic bef = new System.Dynamic.ExpandoObject();
-        dynamic aft = new System.Dynamic.ExpandoObject();
+        var changes = new ChangedHistory();
 
         PropertyValues databaseValues = null;
         foreach (var prop in properties)
         {
-            if (prop.IsModified)
+            if (!prop.IsModified)
+                continue;
+
+            var values = new string[2];
+
+            changes[prop.Metadata.Name] = values;
+
+            if (Equals(prop.OriginalValue, prop.CurrentValue))
             {
-                if (prop.OriginalValue != null)
-                {
-                    if (!prop.OriginalValue.Equals(prop.CurrentValue))
-                    {
-                        ((IDictionary<string, object>)bef)[prop.Metadata.Name] = prop.OriginalValue;
-                    }
-                    else
-                    {
-                        databaseValues ??= entry.GetDatabaseValues();
-                        var originalValue = databaseValues.GetValue<object>(prop.Metadata.Name);
-                        ((IDictionary<string, object>)bef)[prop.Metadata.Name] = originalValue;
-                    }
-                }
-                else
-                {
-                    ((IDictionary<string, object>)bef)[prop.Metadata.Name] = null;
-                }
-
-                ((IDictionary<string, object>)aft)[prop.Metadata.Name] = prop.CurrentValue;
+                databaseValues ??= entry.GetDatabaseValues();
+                values[0] = databaseValues.GetValue<object>(prop.Metadata.Name)?.ToString();
             }
-        }
+            else
+            {
+                values[0] = prop.OriginalValue?.ToString();
+            }
 
-        ((IDictionary<string, object>)json)["before"] = bef;
-        ((IDictionary<string, object>)json)["after"] = aft;
+            values[1] = prop.CurrentValue?.ToString();            
+        }
 
         history.RowId = entry.PrimaryKey();
         history.Kind = EntityState.Modified;
-        history.Changed = JsonSerializer.Serialize(json, AutoHistoryOptions.Instance.JsonSerializerOptions);
+        history.Changed = changes.Serialize();
     }
 
     private static void WriteHistoryDeletedState(AutoHistory history, EntityEntry entry, IEnumerable<PropertyEntry> properties)
     {
-        dynamic json = new System.Dynamic.ExpandoObject();
+        var changes = new ChangedHistory();
 
         foreach (var prop in properties)
         {
-            ((IDictionary<string, object>)json)[prop.Metadata.Name] = prop.OriginalValue;
+            changes[prop.Metadata.Name] = new string[] { prop.OriginalValue?.ToString() };
         }
+
         history.RowId = entry.PrimaryKey();
         history.Kind = EntityState.Deleted;
-        history.Changed = JsonSerializer.Serialize(json, AutoHistoryOptions.Instance.JsonSerializerOptions);
+        history.Changed = changes.Serialize();
     }
 }
