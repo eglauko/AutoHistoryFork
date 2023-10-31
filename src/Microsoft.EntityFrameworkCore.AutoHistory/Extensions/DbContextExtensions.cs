@@ -49,10 +49,34 @@ public static class DbContextExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureAutoHistory(this DbContext context, string userName = null)
     {
-        EnsureAutoHistory(context, DefaultHistoryFactory, userName);
+        context.EnsureAutoHistory(context, DefaultHistoryFactory, userName);
     }
 
+    /// <summary>
+    /// Ensures the automatic history and add the history to the specified history context.
+    /// </summary>
+    /// <param name="context">The context that contains the changed entities.</param>
+    /// <param name="historyContext">The context where the history will be added.</param>
+    /// <param name="userName">The user name that make the change.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void EnsureAutoHistory(this DbContext context, DbContext historyContext, string userName = null)
+    {
+        context.EnsureAutoHistory(historyContext, DefaultHistoryFactory, userName);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureAutoHistory<TAutoHistory>(this DbContext context, Func<TAutoHistory> createHistoryFactory, string userName = null)
+        where TAutoHistory : AutoHistory
+    {
+        context.EnsureAutoHistory(context, createHistoryFactory, userName);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void EnsureAutoHistory<TAutoHistory>(
+        this DbContext context, 
+        DbContext historyContext,
+        Func<TAutoHistory> createHistoryFactory, 
+        string userName = null)
         where TAutoHistory : AutoHistory
     {
         // Must ToArray() here for excluding the AutoHistory model.
@@ -65,7 +89,7 @@ public static class DbContextExtensions
             var autoHistory = entry.AutoHistory(createHistoryFactory, userName);
             if (autoHistory != null)
             {
-                context.Add(autoHistory);
+                historyContext.Add(autoHistory);
             }
         }
     }
@@ -112,22 +136,23 @@ public static class DbContextExtensions
     }
 
     /// <summary>
-    /// Ensures the history for added entries
+    /// Ensures the history for added entries.
     /// </summary>
-    /// <param name="context"></param>
+    /// <param name="historyContext"></param>
     /// <param name="addedEntries"></param>
     /// <param name="userName"></param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureAddedHistory(
-        this DbContext context,
+        this DbContext historyContext,
         EntityEntry[] addedEntries,
         string userName = null)
     {
-        EnsureAddedHistory(context, DefaultHistoryFactory, addedEntries, userName);
+        historyContext.EnsureAddedHistory(DefaultHistoryFactory, addedEntries, userName);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureAddedHistory<TAutoHistory>(
-        this DbContext context,
+        this DbContext historyContext,
         Func<TAutoHistory> createHistoryFactory,
         EntityEntry[] addedEntries,
         string userName = null)
@@ -138,7 +163,7 @@ public static class DbContextExtensions
             var autoHistory = entry.AddedHistory(createHistoryFactory, userName);
             if (autoHistory != null)
             {
-                context.Add(autoHistory);
+                historyContext.Add(autoHistory);
             }
         }
     }

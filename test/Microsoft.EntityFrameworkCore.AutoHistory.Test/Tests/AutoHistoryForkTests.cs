@@ -138,6 +138,40 @@ public class AutoHistoryForkTests
         Assert.Single(changed);
         Assert.False(changed.ContainsKey("PrivateURL"));
     }
+
+    [Fact]
+    public void Should_SaveHistoryInOtherContext()
+    {
+        using var historyDb = CreateContext();
+        using var db = new BloggingContext();
+        var blog = new Blog
+        {
+            Url = "http://blogs.msdn.com/adonet",
+            Posts = new List<Post> {
+                    new Post {
+                        Title = "xUnit",
+                        Content = "Post from xUnit test."
+                    }
+                },
+            PrivateURL = "http://www.secret.com"
+        };
+
+        db.Add(blog);
+        db.SaveChanges();
+
+        blog.Url = "http://blogs.msdn.com/adonet-news";
+        db.EnsureAutoHistory(historyDb);
+        db.SaveChanges();
+        historyDb.SaveChanges();
+
+        db.ChangeTracker.Clear();
+        var history = db.Set<AutoHistory>().ToList();
+        Assert.Empty(history);
+
+        historyDb.ChangeTracker.Clear();
+        history = historyDb.Set<AutoHistory>().ToList();
+        Assert.Single(history);
+    }
 }
 
 public class CurrentUser : IUserCredentials

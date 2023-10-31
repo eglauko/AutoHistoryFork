@@ -43,6 +43,7 @@ bloggingContext.EnsureAutoHistory()
 ```
 
 If you want to record data changes for all entities (except for Added - entities), just override `SaveChanges` and `SaveChangesAsync` methods and call `EnsureAutoHistory()` inside overridden version:
+
 ```csharp
 public class BloggingContext : DbContext
 {
@@ -69,7 +70,9 @@ public class BloggingContext : DbContext
     }
 }
 ```
+
 4. If you also want to record Added - Entities, which is not possible per default, override `SaveChanges` and `SaveChangesAsync` methods this way:
+
 ```csharp
 public class BloggingContext : DbContext
 {
@@ -124,6 +127,31 @@ The `EnsureAddedHistory` method also accepts the name of the current user.
 
 ```csharp
 this.EnsureAddedHistory(addedEntities, currentUserName);
+```
+
+# Using other DbContext for saving AutoHistory
+
+You can use other DbContext for saving AutoHistory by passing the DbContext to the `EnsureAutoHistory` method.
+
+```csharp
+
+public override int SaveChanges()
+{
+    var addedEntities = ChangeTracker
+        .Entries()
+        .Where(e => e.State == EntityState.Added)
+        .ToArray(); // remember added entries,
+
+    this.EnsureAutoHistory(historyDbContext, currentUserName); // historyDbContext and currentUserName can be fields of the DbContext
+    var changes = base.SaveChanges();
+
+    historyDbContext.EnsureAddedHistory(addedEntities, currentUserName);
+    historyDbContext.TrySaveChanges(); // extension method that tries to save changes and, in the event of an error, logs the error and does not throw an exception
+                                       // it is not implemented by default, you can implement it yourself
+
+    return changes;
+}
+
 ```
 
 # Application Name

@@ -5,6 +5,7 @@ namespace Microsoft.EntityFrameworkCore;
 /// <summary>
 /// Represents the entity change history.
 /// </summary>
+[ExcludeFromHistory]
 public class AutoHistory
 {
     /// <summary>
