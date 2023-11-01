@@ -55,6 +55,38 @@ public class AutoHistory
     /// </summary>
     /// <value>The create time.</value>
     public DateTime Created { get; set; }
+
+    /// <summary>
+    /// Constants for default values.
+    /// </summary>
+    public static class Defaults
+    {
+        /// <summary>
+        /// Default maximum length of the 'Changed' column.
+        /// </summary>
+        public const int ChangedMaxLength = 8000;
+
+        /// <summary>
+        /// Default maximum length of the 'RowId' column.
+        /// </summary>
+        public const int RowIdMaxLength = 50;
+
+        /// <summary>
+        /// Default maximum length of the 'Table' column.
+        /// </summary>
+        public const int TableMaxLength = 128;
+
+        /// <summary>
+        /// Default maximum length of the 'UserName' column.
+        /// </summary>
+        public const int UserNameMaxLength = 50;
+
+        /// <summary>
+        /// Default maximum length of the 'ApplicationName' column.
+        /// </summary>
+        public const int ApplicationNameMaxLength = 128;
+
+    }
 }
 
 #pragma warning disable S2094 // An override of Object.Equals or Object.GetHashCode should not be called

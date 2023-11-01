@@ -9,7 +9,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Version>7.0.1-preview-1.0</Version>
+		<Version>7.0.1</Version>
 		<AssemblyVersion>7.0.1</AssemblyVersion>
 		<FileVersion>7.0.1</FileVersion>
 		<Description>A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.</Description>

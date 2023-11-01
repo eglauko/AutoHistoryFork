@@ -224,3 +224,19 @@ The first item is the old value and the second item is the new value.
 The `ChangedHistory` class has a `Serialize` method that returns a JSON string of the dictionary.
 
 Also, has a static `Deserialize` method that returns a `ChangedHistory` object from a JSON string.
+
+# Changes from the original (Microsoft.EntityFrameworkCore.AutoHistory 6.0.0)
+
+The function for saving histories of added entities didn't work in the original version, but this one does.
+
+In the history entity, `AutoHistory`, the properties `UserName` and `ApplicationName` have been added.
+
+The default length for the `Changed` column has been changed from 2048 to 8000 characters.
+
+In the `AutoHistoryOptions` class, the `ApplicationName`, `DateTimeFactory`, `UserNameMaxLength` and `ApplicationNameMaxLength` properties have been added.
+The `JsonSerializerOptions` property has been removed for version .Net6.0 onwards, although it still exists for version .Net5.0.
+
+The `ChangedHistory` class was created, which is a dictionary containing the changed properties of an entity.
+This changes the JSON format for the `Changed` field of the history entity.
+
+The `EnsureAutoHistory` method optionally accepts the name of the current user and a second `DbContext` for recording histories.

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Reflection;
-using System.Text.Json;
 
 namespace Microsoft.EntityFrameworkCore;
 
@@ -9,8 +8,6 @@ namespace Microsoft.EntityFrameworkCore;
 /// </summary>
 public static class ModelBuilderExtensions
 {
-    private const int DefaultChangedMaxLength = 8000;
-
     /// <summary>
     /// Enables the automatic recording change history.
     /// </summary>
@@ -18,20 +15,21 @@ public static class ModelBuilderExtensions
     /// <param name="applicationName">The name of the application that made the change. Default: EntryAssemblyName.</param>
     /// <param name="changedMaxLength">The maximum length of the 'Changed' column. <c>null</c> will use default setting 2048.</param>
     /// <param name="limitChangedLength">The value indicating whether limit the length of the 'Changed' column. Default: false.</param>
-    /// <param name="JsonSerializerOptions">The json setting for the 'Changed' column</param>
     /// <returns>The <see cref="ModelBuilder"/> had enabled auto history feature.</returns>
     public static ModelBuilder EnableAutoHistory(this ModelBuilder modelBuilder, 
         string applicationName = null,
         int? changedMaxLength = null, 
-        bool? limitChangedLength = null,
-        JsonSerializerOptions JsonSerializerOptions = null)
+        bool? limitChangedLength = null
+    )
     {
         return EnableAutoHistory<AutoHistory>(modelBuilder, o =>
         {
-            o.ApplicationName = applicationName ?? Assembly.GetEntryAssembly()?.GetName().Name;
-            o.ChangedMaxLength = changedMaxLength;
-            o.LimitChangedLength = limitChangedLength ?? false;
-            o.JsonSerializerOptions = JsonSerializerOptions;
+            if (string.IsNullOrWhiteSpace(applicationName))
+                o.ApplicationName = applicationName;
+            if (changedMaxLength.HasValue)
+                o.ChangedMaxLength = changedMaxLength.Value;
+            if (limitChangedLength.HasValue)
+                o.LimitChangedLength = limitChangedLength.Value;
         });
     }
 
@@ -58,6 +56,8 @@ public static class ModelBuilderExtensions
     {
         var options = AutoHistoryOptions.Instance;
         configure?.Invoke(options);
+
+        // Set default application name if not set
         options.ApplicationName ??= Assembly.GetEntryAssembly()?.GetName().Name;
 
         modelBuilder.Entity<TAutoHistory>(b =>
@@ -69,11 +69,10 @@ public static class ModelBuilderExtensions
 
             if (options.LimitChangedLength)
             {
-                var max = options.ChangedMaxLength ?? DefaultChangedMaxLength;
+                var max = options.ChangedMaxLength ?? AutoHistory.Defaults.ChangedMaxLength;
                 if (max <= 0)
-                {
-                    max = DefaultChangedMaxLength;
-                }
+                    max = AutoHistory.Defaults.ChangedMaxLength;
+
                 b.Property(c => c.Changed).HasMaxLength(max);
             }
         });
