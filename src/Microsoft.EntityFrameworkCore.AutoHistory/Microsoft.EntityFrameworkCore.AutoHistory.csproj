@@ -9,9 +9,9 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Version>7.0.1</Version>
-		<AssemblyVersion>7.0.1</AssemblyVersion>
-		<FileVersion>7.0.1</FileVersion>
+		<Version>7.0.2</Version>
+		<AssemblyVersion>7.0.2</AssemblyVersion>
+		<FileVersion>7.0.2</FileVersion>
 		<Description>A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<DocumentationFile>$(BaseOutputPath)\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>

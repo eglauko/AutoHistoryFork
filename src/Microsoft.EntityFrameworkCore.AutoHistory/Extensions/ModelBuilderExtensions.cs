@@ -19,12 +19,11 @@ public static class ModelBuilderExtensions
     public static ModelBuilder EnableAutoHistory(this ModelBuilder modelBuilder, 
         string applicationName = null,
         int? changedMaxLength = null, 
-        bool? limitChangedLength = null
-    )
+        bool? limitChangedLength = null)
     {
         return EnableAutoHistory<AutoHistory>(modelBuilder, o =>
         {
-            if (string.IsNullOrWhiteSpace(applicationName))
+            if (!string.IsNullOrWhiteSpace(applicationName))
                 o.ApplicationName = applicationName;
             if (changedMaxLength.HasValue)
                 o.ChangedMaxLength = changedMaxLength.Value;
