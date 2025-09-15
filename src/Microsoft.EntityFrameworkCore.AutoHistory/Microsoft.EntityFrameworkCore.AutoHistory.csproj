@@ -16,7 +16,8 @@
 		<FileVersion>9.0.0</FileVersion>
 		<Description>A plugin for Microsoft.EntityFrameworkCore to support automatically recording data changes history.</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<DocumentationFile>$(BaseOutputPath)\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+		<DocumentationFile Condition="'$(Configuration)' != 'Release'">$(BaseOutputPath)/$(Configuration)/$(TargetFramework)/$(AssemblyName).xml</DocumentationFile>
+		<DocumentationFile Condition="'$(Configuration)' == 'Release'">bin/Release/$(TargetFramework)/$(AssemblyName).xml</DocumentationFile>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<IsPackable>true</IsPackable>
 		<Authors>
