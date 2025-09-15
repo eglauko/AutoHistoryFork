@@ -1,12 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Microsoft.EntityFrameworkCore;
 
@@ -23,22 +20,42 @@ public static class DbContextExtensions
 
     private static readonly ConcurrentDictionary<Type, Tuple<bool, string[]>> cache = new();
     private static readonly ConcurrentDictionary<Type, IReadOnlyList<IProperty>> keysCache = new();
-
     private static readonly Func<Type, Tuple<bool, string[]>> valueFactory = CreateCache;
+
+    private static FrozenDictionary<Type, AutoHistoryTypeOptions>? _typeOptions;
+    private static FrozenDictionary<Type, AutoHistoryTypeOptions> TypeOptions
+        => _typeOptions ??= AutoHistoryOptions.Instance.TypeOptions.ToFrozenDictionary();
 
     private static Tuple<bool, string[]> CreateCache(Type key)
     {
         // Get the ExcludeFromHistoryAttribute attribute for the entity type.
-        bool exclude = key.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any();
+        bool exclude = key.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Length is not 0;
 
         // Get the mapped properties for the entity type.
         // (include shadow properties, not include navigations & references)
         var excludedProperties = key.GetProperties()
-                .Where(p => p.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Any())
+                .Where(static p => p.GetCustomAttributes(typeof(ExcludeFromHistoryAttribute), true).Length is not 0)
                 .Select(p => p.Name)
                 .ToArray();
 
-        return new Tuple<bool, string[]>(exclude, excludedProperties.ToArray());
+        if(TypeOptions.TryGetValue(key, out var typeOptions))
+        {
+            if (!exclude)
+                exclude = typeOptions.ExcludeFromHistory;
+
+            if (typeOptions.ExcludeProperties?.Length > 0)
+            {
+                var list = new List<string>(excludedProperties);
+                foreach (var prop in typeOptions.ExcludeProperties)
+                {
+                    if (!list.Contains(prop))
+                        list.Add(prop);
+                }
+                excludedProperties = list.ToArray();
+            }
+        }
+
+        return new Tuple<bool, string[]>(exclude, [.. excludedProperties]);
     }
 
     /// <summary>
@@ -47,7 +64,7 @@ public static class DbContextExtensions
     /// <param name="context">The context.</param>
     /// <param name="userName">The user name that make the change.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void EnsureAutoHistory(this DbContext context, string userName = null)
+    public static void EnsureAutoHistory(this DbContext context, string? userName = null)
     {
         context.EnsureAutoHistory(context, DefaultHistoryFactory, userName);
     }
@@ -59,13 +76,15 @@ public static class DbContextExtensions
     /// <param name="historyContext">The context where the history will be added.</param>
     /// <param name="userName">The user name that make the change.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void EnsureAutoHistory(this DbContext context, DbContext historyContext, string userName = null)
+    public static void EnsureAutoHistory(this DbContext context, DbContext historyContext, string? userName = null)
     {
         context.EnsureAutoHistory(historyContext, DefaultHistoryFactory, userName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void EnsureAutoHistory<TAutoHistory>(this DbContext context, Func<TAutoHistory> createHistoryFactory, string userName = null)
+    public static void EnsureAutoHistory<TAutoHistory>(this DbContext context, 
+        Func<TAutoHistory> createHistoryFactory, 
+        string? userName = null)
         where TAutoHistory : AutoHistory
     {
         context.EnsureAutoHistory(context, createHistoryFactory, userName);
@@ -76,7 +95,7 @@ public static class DbContextExtensions
         this DbContext context, 
         DbContext historyContext,
         Func<TAutoHistory> createHistoryFactory, 
-        string userName = null)
+        string? userName = null)
         where TAutoHistory : AutoHistory
     {
         // Must ToArray() here for excluding the AutoHistory model.
@@ -94,9 +113,10 @@ public static class DbContextExtensions
         }
     }
 
-    internal static TAutoHistory AutoHistory<TAutoHistory>(this EntityEntry entry, 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static TAutoHistory? AutoHistory<TAutoHistory>(this EntityEntry entry, 
         Func<TAutoHistory> createHistoryFactory, 
-        string userName)
+        string? userName)
         where TAutoHistory : AutoHistory
     {
         if (IsEntityExcluded(entry))
@@ -109,7 +129,18 @@ public static class DbContextExtensions
         var history = createHistoryFactory();
         history.TableName = entry.Metadata.GetTableName();
         history.UserName = userName;
-        
+
+        if (AutoHistoryOptions.Instance.UseGroupId)
+        {
+            var type = entry.Metadata.ClrType;
+            if (type is not null 
+                && TypeOptions.TryGetValue(type, out var typeOptions)
+                && typeOptions.GroupProperty is string groupProperty)
+            {
+                history.GroupId = entry.Property(groupProperty)?.CurrentValue?.ToString();
+            }
+        }
+
         switch (entry.State)
         {
             case EntityState.Modified:
@@ -125,10 +156,11 @@ public static class DbContextExtensions
         return history;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsEntityExcluded(EntityEntry entry)
         => cache.GetOrAdd(entry.Metadata.ClrType, valueFactory).Item1;
-        
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static IEnumerable<PropertyEntry> GetPropertiesWithoutExcluded(EntityEntry entry)
     {
         var excludedProperties = cache.GetOrAdd(entry.Metadata.ClrType, valueFactory).Item2;
@@ -145,7 +177,7 @@ public static class DbContextExtensions
     public static void EnsureAddedHistory(
         this DbContext historyContext,
         EntityEntry[] addedEntries,
-        string userName = null)
+        string? userName = null)
     {
         historyContext.EnsureAddedHistory(DefaultHistoryFactory, addedEntries, userName);
     }
@@ -155,7 +187,7 @@ public static class DbContextExtensions
         this DbContext historyContext,
         Func<TAutoHistory> createHistoryFactory,
         EntityEntry[] addedEntries,
-        string userName = null)
+        string? userName = null)
         where TAutoHistory : AutoHistory
     {
         foreach (var entry in addedEntries)
@@ -168,10 +200,11 @@ public static class DbContextExtensions
         }
     }
 
-    internal static TAutoHistory AddedHistory<TAutoHistory>(
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static TAutoHistory? AddedHistory<TAutoHistory>(
         this EntityEntry entry,
         Func<TAutoHistory> createHistoryFactory,
-        string userName)
+        string? userName)
         where TAutoHistory : AutoHistory
     {
         if (IsEntityExcluded(entry))
@@ -182,7 +215,7 @@ public static class DbContextExtensions
         var changes = new ChangedHistory();
         foreach (var prop in properties)
         {
-            changes[prop.Metadata.Name] = new string[] { prop.OriginalValue?.ToString() };
+            changes[prop.Metadata.Name] = [prop.OriginalValue?.ToString()!];
         }
 
         var history = createHistoryFactory();
@@ -191,12 +224,25 @@ public static class DbContextExtensions
         history.RowId = entry.PrimaryKey();
         history.Kind = EntityState.Added;
         history.Changed = changes.Serialize();
+
+        if (AutoHistoryOptions.Instance.UseGroupId)
+        {
+            var type = entry.Metadata.ClrType;
+            if (type is not null
+                && TypeOptions.TryGetValue(type, out var typeOptions)
+                && typeOptions.GroupProperty is string groupProperty)
+            {
+                history.GroupId = entry.Property(groupProperty)?.CurrentValue?.ToString();
+            }
+        }
+
         return history;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string PrimaryKey(this EntityEntry entry)
     {
-        var keys = keysCache.GetOrAdd(entry.Metadata.ClrType, type => entry.Metadata.FindPrimaryKey().Properties);
+        var keys = keysCache.GetOrAdd(entry.Metadata.ClrType, type => entry.Metadata.FindPrimaryKey()!.Properties);
 
         if (keys.Count == 1)
             return entry.Property(keys[0].Name).CurrentValue?.ToString() ?? string.Empty;
@@ -212,11 +258,12 @@ public static class DbContextExtensions
         return sb.ToString();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void WriteHistoryModifiedState(AutoHistory history, EntityEntry entry, IEnumerable<PropertyEntry> properties)
     {
         var changes = new ChangedHistory();
 
-        PropertyValues databaseValues = null;
+        PropertyValues? databaseValues = null;
         foreach (var prop in properties)
         {
             if (!prop.IsModified)
@@ -228,15 +275,15 @@ public static class DbContextExtensions
 
             if (Equals(prop.OriginalValue, prop.CurrentValue))
             {
-                databaseValues ??= entry.GetDatabaseValues();
-                values[0] = databaseValues.GetValue<object>(prop.Metadata.Name)?.ToString();
+                databaseValues ??= entry.GetDatabaseValues()!;
+                values[0] = databaseValues.GetValue<object>(prop.Metadata.Name)?.ToString()!;
             }
             else
             {
-                values[0] = prop.OriginalValue?.ToString();
+                values[0] = prop.OriginalValue?.ToString()!;
             }
 
-            values[1] = prop.CurrentValue?.ToString();            
+            values[1] = prop.CurrentValue?.ToString()!;            
         }
 
         history.RowId = entry.PrimaryKey();
@@ -244,13 +291,14 @@ public static class DbContextExtensions
         history.Changed = changes.Serialize();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void WriteHistoryDeletedState(AutoHistory history, EntityEntry entry, IEnumerable<PropertyEntry> properties)
     {
         var changes = new ChangedHistory();
 
         foreach (var prop in properties)
         {
-            changes[prop.Metadata.Name] = new string[] { prop.OriginalValue?.ToString() };
+            changes[prop.Metadata.Name] = [prop.OriginalValue?.ToString()!];
         }
 
         history.RowId = entry.PrimaryKey();

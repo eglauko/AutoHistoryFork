@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Microsoft.EntityFrameworkCore;
+﻿namespace Microsoft.EntityFrameworkCore;
 
 /// <summary>
 /// Represents the entity change history.
@@ -18,31 +16,37 @@ public class AutoHistory
     /// Gets or sets the source row id.
     /// </summary>
     /// <value>The source row id.</value>
-    public string RowId { get; set; }
+    public string? RowId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group identifier.
+    /// </summary>
+    /// <value>The group identifier.</value>
+    public string? GroupId { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the table.
     /// </summary>
     /// <value>The name of the table.</value>
-    public string TableName { get; set; }
+    public string? TableName { get; set; }
 
     /// <summary>
     /// Gets or sets the json about the changing.
     /// </summary>
     /// <value>The json about the changing.</value>
-    public string Changed { get; set; }
+    public string? Changed { get; set; }
 
     /// <summary>
     /// Gets or sets the user name.
     /// </summary>
     /// <value>The user name that made the change.</value>
-    public string UserName { get; set; }
+    public string? UserName { get; set; }
 
     /// <summary>
     /// Gets or sets the application name.
     /// </summary>
     /// <value>The name that identifies the application that made the change.</value>
-    public string ApplicationName { get; set; }
+    public string? ApplicationName { get; set; }
 
     /// <summary>
     /// Gets or sets the change kind.
@@ -72,6 +76,11 @@ public class AutoHistory
         public const int RowIdMaxLength = 50;
 
         /// <summary>
+        /// Default maximum length of the 'GroupId' column.
+        /// </summary>
+        public const int GroupIdMaxLength = 50;
+
+        /// <summary>
         /// Default maximum length of the 'Table' column.
         /// </summary>
         public const int TableMaxLength = 128;
@@ -94,7 +103,4 @@ public class AutoHistory
 /// <summary>
 /// This class exists so we can reference AutoHistory in the test project. The class name collides with the namespace there.
 /// </summary>
-internal class AutoHistoryTestHandle : AutoHistory
-{
-
-}
+internal class AutoHistoryTestHandle : AutoHistory { }

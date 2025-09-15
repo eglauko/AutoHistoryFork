@@ -1,9 +1,4 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-
-#if NET5_0
-using System.Text.Json;
-#endif
+﻿using System.Runtime.CompilerServices;
 
 namespace Microsoft.EntityFrameworkCore;
 
@@ -41,6 +36,11 @@ public sealed class AutoHistoryOptions
     public int RowIdMaxLength { get; set; } = AutoHistory.Defaults.RowIdMaxLength;
 
     /// <summary>
+    /// The max length for the group id column. Default: 50.
+    /// </summary>
+    public int GroupIdMaxLength { get; set; } = AutoHistory.Defaults.GroupIdMaxLength;
+
+    /// <summary>
     /// The max length for the table column. Default: 128.
     /// </summary>
     public int TableMaxLength { get; set; } = AutoHistory.Defaults.TableMaxLength;
@@ -56,9 +56,15 @@ public sealed class AutoHistoryOptions
     public int ApplicationNameMaxLength { get; set; } = AutoHistory.Defaults.ApplicationNameMaxLength;
 
     /// <summary>
+    /// Defines whether to map the application name. If true, the ApplicationName property will be mapped to a column.
+    /// Default: true.
+    /// </summary>
+    public bool MapApplicationName { get; set; } = true;
+
+    /// <summary>
     /// The name of the application that made the change. Default: EntryAssemblyName.
     /// </summary>
-    public string ApplicationName { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; set; }
+    public string? ApplicationName { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; set; }
 
     /// <summary>
     /// The factory for the DateTime. Default: () => DateTime.UtcNow.
@@ -66,13 +72,51 @@ public sealed class AutoHistoryOptions
     public Func<DateTime> DateTimeFactory { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; set; } 
         = [MethodImpl(MethodImplOptions.AggressiveInlining)] static () => DateTime.UtcNow;
 
-#if NET5_0
+    /// <summary>
+    /// <para>
+    ///     Determines whether to use an alternative Group Id property as the row identifier.
+    ///     <br />
+    ///     It's useful to aggregate history records by a business key instead of the primary key.
+    /// </para>
+    /// </summary>
+    public bool UseGroupId { get; set; }
 
     /// <summary>
-    /// The json setting for the 'Changed' column
+    /// Configuration options for specific entity types.
     /// </summary>
-    public JsonSerializerOptions JsonSerializerOptions { get; set; }
+    public Dictionary<Type, AutoHistoryTypeOptions> TypeOptions { get; } = [];
 
-#endif
+    /// <summary>
+    /// Configure the property <see cref="UseGroupId"/>.
+    /// </summary>
+    /// <param name="useGroupId">
+    ///     Determines whether to use an alternative Group Id property as the row identifier.
+    /// </param>
+    /// <returns>
+    ///     The same <see cref="AutoHistoryOptions"/> instance so that multiple calls can be chained.
+    /// </returns>
+    public AutoHistoryOptions WithGroupId(bool useGroupId = true)
+    {
+        UseGroupId = useGroupId;
+        return this;
+    }
 
+    /// <summary>
+    /// Configures options for a specific entity type.
+    /// </summary>
+    /// <typeparam name="T">The entity type to configure.</typeparam>
+    /// <param name="configure">The action to configure the type options.</param>
+    /// <returns>The same <see cref="AutoHistoryOptions"/> instance so that multiple calls can be chained.</returns>
+    public AutoHistoryOptions ConfigureType<T>(Action<AutoHistoryTypeOptions<T>> configure) where T : class
+    {
+        var type = typeof(T);
+        if (!(TypeOptions.TryGetValue(type, out var options) && options is AutoHistoryTypeOptions<T> typedOptions))
+        {
+            typedOptions = new AutoHistoryTypeOptions<T> { EntityType = type };
+            TypeOptions[type] = typedOptions;
+        }
+
+        configure(typedOptions);
+        return this;
+    }
 }

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace Microsoft.EntityFrameworkCore;
 
@@ -15,11 +14,13 @@ public static class ModelBuilderExtensions
     /// <param name="applicationName">The name of the application that made the change. Default: EntryAssemblyName.</param>
     /// <param name="changedMaxLength">The maximum length of the 'Changed' column. <c>null</c> will use default setting 2048.</param>
     /// <param name="limitChangedLength">The value indicating whether limit the length of the 'Changed' column. Default: false.</param>
+    /// <param name="configure">The action to configure the auto history options.</param>
     /// <returns>The <see cref="ModelBuilder"/> had enabled auto history feature.</returns>
     public static ModelBuilder EnableAutoHistory(this ModelBuilder modelBuilder, 
-        string applicationName = null,
+        string? applicationName = null,
         int? changedMaxLength = null, 
-        bool? limitChangedLength = null)
+        bool? limitChangedLength = null,
+        Action<AutoHistoryOptions>? configure = null)
     {
         return EnableAutoHistory<AutoHistory>(modelBuilder, o =>
         {
@@ -29,6 +30,8 @@ public static class ModelBuilderExtensions
                 o.ChangedMaxLength = changedMaxLength.Value;
             if (limitChangedLength.HasValue)
                 o.LimitChangedLength = limitChangedLength.Value;
+
+            configure?.Invoke(o);
         });
     }
 
@@ -63,8 +66,17 @@ public static class ModelBuilderExtensions
         {
             b.Property(c => c.RowId).IsRequired().HasMaxLength(options.RowIdMaxLength);
             b.Property(c => c.TableName).IsRequired().HasMaxLength(options.TableMaxLength);
-            b.Property(c => c.ApplicationName).IsRequired().HasMaxLength(options.ApplicationNameMaxLength);
             b.Property(c => c.UserName).HasMaxLength(options.UserNameMaxLength);
+
+            if (options.MapApplicationName)
+                b.Property(c => c.ApplicationName).IsRequired().HasMaxLength(options.ApplicationNameMaxLength);
+            else
+                b.Ignore(c => c.ApplicationName);
+
+            if (options.UseGroupId)
+                b.Property(c => c.GroupId).HasMaxLength(options.GroupIdMaxLength);
+            else
+                b.Ignore(c => c.GroupId);
 
             if (options.LimitChangedLength)
             {

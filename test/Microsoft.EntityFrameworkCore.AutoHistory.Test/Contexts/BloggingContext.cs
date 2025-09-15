@@ -8,7 +8,7 @@ public class BloggingContext : DbContext
     public DbSet<Blog> Blogs { get; set; }
     public DbSet<Post> Posts { get; set; }
     public DbSet<NotTracked> NotTracked { get; set; }
-
+    public DbSet<NotTracked2> NotTracked2 { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -17,7 +17,16 @@ public class BloggingContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory(changedMaxLength: null);
+        modelBuilder.EnableAutoHistory(
+            configure: options => options
+                .ConfigureType<Blog>(typeOptions =>
+                {
+                    typeOptions.WithExcludeProperty(b => b.ExcludedProperty);
+                })
+                .ConfigureType<NotTracked2>(typeOptions =>
+                {
+                    typeOptions.WithExcludeFromHistory();
+                }));
     }
 }
 
@@ -33,6 +42,8 @@ public class Blog
 
     [ExcludeFromHistory]
     public string PrivateURL { get; set; }
+
+    public string ExcludedProperty { get; set; }
 
     public List<Post> Posts { get; set; }
 }
@@ -51,5 +62,11 @@ public class Post
 public class NotTracked
 {
     public int NotTrackedId { get; set; }
+    public string Title { get; set; }
+}
+
+public class NotTracked2
+{
+    public int NotTracked2Id { get; set; }
     public string Title { get; set; }
 }
