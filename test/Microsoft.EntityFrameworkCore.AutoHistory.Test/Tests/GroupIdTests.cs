@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore.AutoHistoryTests.Contexts;
 using Xunit;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace Microsoft.EntityFrameworkCore.AutoHistoryTests.Tests;
 
@@ -27,11 +26,11 @@ public class GroupIdTests
         var blog = new Blog
         {
             Url = "http://groupid/add-blog",
-            Posts = new List<Post>
-            {
+            Posts =
+            [
                 new Post { Title = "Post 1", Content = "Content 1" },
                 new Post { Title = "Post 2", Content = "Content 2" }
-            }
+            ]
         };
 
         db.Blogs.Add(blog);
@@ -52,10 +51,10 @@ public class GroupIdTests
         var blog = new Blog
         {
             Url = "http://groupid/modify-blog",
-            Posts = new List<Post>
-            {
+            Posts =
+            [
                 new Post { Title = "Post 1", Content = "Initial" }
-            }
+            ]
         };
 
         db.Blogs.Add(blog);
@@ -82,10 +81,10 @@ public class GroupIdTests
         var blog = new Blog
         {
             Url = "http://groupid/delete-blog",
-            Posts = new List<Post>
-            {
+            Posts =
+            [
                 new Post { Title = "Post 1", Content = "Content" }
-            }
+            ]
         };
 
         db.Blogs.Add(blog);
@@ -142,11 +141,11 @@ public class GroupIdTests
         var blog = new Blog
         {
             Url = "http://groupid/multi-mod",
-            Posts = new List<Post>
-            {
+            Posts =
+            [
                 new Post { Title = "P1", Content = "C1" },
                 new Post { Title = "P2", Content = "C2" }
-            }
+            ]
         };
 
         db.Blogs.Add(blog);

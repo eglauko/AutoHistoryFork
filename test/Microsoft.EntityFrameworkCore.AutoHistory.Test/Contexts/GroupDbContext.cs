@@ -30,7 +30,7 @@ public class GroupDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory(
+        modelBuilder.EnableAutoHistory<GroupDbContext>(
             configure: options => options
                 .WithGroupId(true)
                 .ConfigureType<Blog>(typeOptions =>

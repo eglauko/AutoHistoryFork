@@ -34,7 +34,7 @@ public class HistoryContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory("EntityFramework.AutoHistoryFork.Tests");
+        modelBuilder.EnableAutoHistory<HistoryContext>("EntityFramework.AutoHistoryFork.Tests");
 
         modelBuilder.Entity<Product>()
             .ToTable("Products")

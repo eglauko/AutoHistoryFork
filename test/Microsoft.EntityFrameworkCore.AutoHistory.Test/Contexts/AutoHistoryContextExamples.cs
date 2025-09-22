@@ -28,7 +28,7 @@ public abstract class AutoHistoryContextBase : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory(applicationName);
+        modelBuilder.EnableAutoHistory<AutoHistoryContextBase>(applicationName);
 
         base.OnModelCreating(modelBuilder);
     }

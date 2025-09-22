@@ -17,7 +17,7 @@ public class BloggingContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory(
+        modelBuilder.EnableAutoHistory<BloggingContext>(
             configure: options => options
                 .ConfigureType<Blog>(typeOptions =>
                 {

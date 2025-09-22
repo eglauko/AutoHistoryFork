@@ -2,16 +2,25 @@
 
 namespace Microsoft.EntityFrameworkCore;
 
+#pragma warning disable S2326 // static type with generic parameters
+#pragma warning disable S2743 // static type with generic parameters
+
+
 /// <summary>
 /// This class provides options for setting up auto history.
 /// </summary>
 public sealed class AutoHistoryOptions
 {
+    private static class AutoHistoryDbInstance<TDbContext>
+    {
+        internal static AutoHistoryOptions Instance { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; } = new();
+    }
+
     /// <summary>
-    /// The shared instance of the AutoHistoryOptions.
+    /// The shared instance of the AutoHistoryOptions for the given DbContext type.
     /// </summary>
-    
-    internal static AutoHistoryOptions Instance { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; } = new();
+    internal static AutoHistoryOptions GetOptions<TDbContext>() where TDbContext : DbContext
+        => AutoHistoryDbInstance<TDbContext>.Instance;
 
     /// <summary>
     /// Prevent constructor from being called eternally.
@@ -64,7 +73,7 @@ public sealed class AutoHistoryOptions
     /// <summary>
     /// The name of the application that made the change. Default: EntryAssemblyName.
     /// </summary>
-    public string? ApplicationName { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; set; }
+    public string? ApplicationName { get; set; }
 
     /// <summary>
     /// The factory for the DateTime. Default: () => DateTime.UtcNow.
@@ -84,7 +93,7 @@ public sealed class AutoHistoryOptions
     /// <summary>
     /// Configuration options for specific entity types.
     /// </summary>
-    public Dictionary<Type, AutoHistoryTypeOptions> TypeOptions { get; } = [];
+    public Dictionary<Type, AutoHistoryTypeOptions> TypesOptions { get; } = [];
 
     /// <summary>
     /// Configure the property <see cref="UseGroupId"/>.
@@ -110,10 +119,10 @@ public sealed class AutoHistoryOptions
     public AutoHistoryOptions ConfigureType<T>(Action<AutoHistoryTypeOptions<T>> configure) where T : class
     {
         var type = typeof(T);
-        if (!(TypeOptions.TryGetValue(type, out var options) && options is AutoHistoryTypeOptions<T> typedOptions))
+        if (!(TypesOptions.TryGetValue(type, out var options) && options is AutoHistoryTypeOptions<T> typedOptions))
         {
             typedOptions = new AutoHistoryTypeOptions<T> { EntityType = type };
-            TypeOptions[type] = typedOptions;
+            TypesOptions[type] = typedOptions;
         }
 
         configure(typedOptions);

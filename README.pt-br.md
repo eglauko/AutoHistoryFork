@@ -1,46 +1,44 @@
 # AutoHistoryFork
-A plugin for **Microsoft.EntityFrameworkCore** to support automatically recording data changes history.
+Um plugin para **Microsoft.EntityFrameworkCore** que suporta o registro automático do histórico de alterações de dados.
 
-This fork works for added entities.
+Este fork funciona também para entidades adicionadas (Added).
 
-Version 9.0 (Microsoft.EntityFrameworkCore.AutoHistoryFork 9.x) supports **.NET 8.0** and **.NET 9.0** (with their respective EF Core 8/9 versions).
+Versão 9.0 (Microsoft.EntityFrameworkCore.AutoHistoryFork 9.x) suporta **.NET 8.0** e **.NET 9.0** (com suas respectivas versões EF Core 8/9).
 
-For applications targeting **.NET 5.0**, **.NET 6.0** or **.NET 7.0**, use package version **7.x** of this fork,
-which supports those frameworks and their corresponding EF Core versions.
+Para aplicações que visam **.NET 5.0**, **.NET 6.0** ou **.NET 7.0**, use a versão **7.x** deste fork, que suporta esses frameworks e suas versões correspondentes do EF Core.
 
 ---
-## Breaking change (v9+): generic type parameter required on EnableAutoHistory
-Starting with this version the extension methods `modelBuilder.EnableAutoHistory()` require at least the generic parameter for the `DbContext`:
+## Mudança incompatível (v9+): parâmetro de tipo genérico obrigatório em EnableAutoHistory
+A partir desta versão os métodos de extensão `modelBuilder.EnableAutoHistory()` exigem pelo menos o parâmetro genérico do `DbContext`:
 
-Before (v7.x / old API):
+Antes (v7.x / API antiga):
 ```csharp
 modelBuilder.EnableAutoHistory();
 modelBuilder.EnableAutoHistory(options => { /*...*/ });
 modelBuilder.EnableAutoHistory<CustomAutoHistory>(options => { /*...*/ });
 ```
-Now (v9+):
+Agora (v9+):
 ```csharp
 modelBuilder.EnableAutoHistory<BloggingContext>();
 modelBuilder.EnableAutoHistory<BloggingContext>(options => { /*...*/ });
 modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(options => { /*...*/ });
 ```
-> The first generic parameter is ALWAYS your `DbContext` type. The second (optional) is the custom type that inherits from `AutoHistory`.
+> O primeiro parâmetro genérico é SEMPRE o tipo do seu `DbContext`. O segundo (opcional) é o tipo customizado que herda de `AutoHistory`.
 
 ---
-# How to use
+# Como usar
 
-`AutoHistoryFork` will record all the data changing history in one table named `AutoHistories`. This table will record data
-`UPDATE`, `DELETE` history and, optionally, `ADD` history.
+`AutoHistoryFork` registra todo o histórico de mudanças de dados em uma tabela chamada `AutoHistories`. Esta tabela registra histórico de `UPDATE`, `DELETE` e, opcionalmente, de `ADD`.
 
-This fork adds two additional fields to the original version: `UserName` and `ApplicationName` (and now also optional `GroupId`).
+Este fork adiciona dois campos extras em relação à versão original: `UserName` e `ApplicationName` (e agora também opcional `GroupId`).
 
-### 1. Install package
+### 1. Instalar o pacote
 ```powershell
 PM> Install-Package Microsoft.EntityFrameworkCore.AutoHistoryFork
 ```
 
-### 2. Enable AutoHistory
-Use the generic method providing your `DbContext` type:
+### 2. Habilitar AutoHistory
+Use o método genérico informando o tipo do seu `DbContext`:
 ```csharp
 public class BloggingContext : DbContext
 {
@@ -57,12 +55,12 @@ public class BloggingContext : DbContext
 }
 ```
 
-### 3. Ensure AutoHistory before SaveChanges
+### 3. Garantir AutoHistory antes de SaveChanges
 ```csharp
 bloggingContext.EnsureAutoHistory(); // Modified & Deleted entities
 ```
 
-### 4. Automatically record Modified/Deleted in overridden SaveChanges
+### 4. Registrar automaticamente Modified/Deleted sobrescrevendo SaveChanges
 ```csharp
 public class BloggingContext : DbContext
 {
@@ -87,7 +85,7 @@ public class BloggingContext : DbContext
 }
 ```
 
-### 5. Recording Added entities (two-phase save)
+### 5. Registrando entidades Added (salvamento em duas fases)
 ```csharp
 public class BloggingContext : DbContext
 {
@@ -126,7 +124,7 @@ public class BloggingContext : DbContext
 ```
 
 ---
-# Use Current User Name
+# Usar o nome do usuário atual
 ```csharp
 public override int SaveChanges()
 {
@@ -134,13 +132,13 @@ public override int SaveChanges()
     return base.SaveChanges();
 }
 ```
-Added entities:
+Entidades Added:
 ```csharp
 this.EnsureAddedHistory(addedEntities, currentUserName);
 ```
 
 ---
-# Using a separate DbContext for saving history
+# Usando um DbContext separado para salvar histórico
 ```csharp
 public override int SaveChanges()
 {
@@ -159,14 +157,14 @@ public override int SaveChanges()
 
 ---
 # Application Name
-Configure via parameter or options. Remember to specify the DbContext type now.
+Configurar via parâmetro ou options. Lembre de especificar agora o tipo do DbContext.
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     modelBuilder.EnableAutoHistory<BloggingContext>("MyApplicationName");
 }
 ```
-Disable mapping column:
+Desabilitar mapeamento da coluna:
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -176,13 +174,13 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     });
 }
 ```
-Or keep column & pass fixed name:
+Ou manter a coluna e passar nome fixo:
 ```csharp
 modelBuilder.EnableAutoHistory<BloggingContext>("MyFixedAppName");
 ```
 
 ---
-# Custom AutoHistory entity
+# Entidade AutoHistory personalizada
 ```csharp
 class CustomAutoHistory : AutoHistory
 {
@@ -194,29 +192,29 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(options => { });
 }
 ```
-Supplying custom factory when ensuring history:
+Fornecendo factory customizada ao garantir histórico:
 ```csharp
 db.EnsureAutoHistory<BloggingContext, CustomAutoHistory>(() => new CustomAutoHistory
 {
     CustomField = "CustomValue"
 });
 ```
-> The properties inherited from `AutoHistory` are automatically populated by the framework.
+> As propriedades herdadas de `AutoHistory` são preenchidas automaticamente pelo framework.
 
-For Added entities (same overload pattern already available):
+Para entidades Added (mesmo padrão de overload já disponível):
 ```csharp
 this.EnsureAddedHistory<BloggingContext, CustomAutoHistory>(() => new CustomAutoHistory { CustomField = "X" }, addedEntries);
 ```
 
 ---
-# Excluding properties / entities from history
-Four ways:
-1. Attribute on property `[ExcludeFromHistory]`
-2. Attribute on the class (excludes the entire entity)
-3. Fluent API to exclude a property (`WithExcludeProperty`)
-4. Fluent API to exclude an entity (`WithExcludeFromHistory`)
+# Excluindo propriedades / entidades do histórico
+Quatro maneiras:
+1. Atributo na propriedade `[ExcludeFromHistory]`
+2. Atributo na classe (exclui a entidade inteira)
+3. Fluent API para excluir uma propriedade (`WithExcludeProperty`)
+4. Fluent API para excluir uma entidade (`WithExcludeFromHistory`)
 
-Example:
+Exemplo:
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -242,16 +240,16 @@ public class Blog
 public class NotTracked { /* ... */ }
 public class NotTracked2 { /* ... */ }
 ```
-Rules (summary):
-- If only excluded properties changed, no history entry is generated.
-- An entirely excluded entity never generates history.
-- Final exclusion set = union of attributes + fluent configuration.
+Regras (resumo):
+- Se somente propriedades excluídas mudaram, nenhuma entrada de histórico é gerada.
+- Uma entidade totalmente excluída nunca gera histórico.
+- Conjunto final de exclusões = união de atributos + configuração fluente.
 
 ---
-# GroupId (Grouping related entity histories)
-Allows grouping (e.g., Blog + Posts) by sharing a logical identifier.
+# GroupId (Agrupando históricos relacionados)
+Permite agrupar (ex.: Blog + Posts) compartilhando um identificador lógico.
 
-Enable globally and configure per type:
+Habilitar globalmente e configurar por tipo:
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -261,7 +259,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         .ConfigureType<Post>(t => t.WithGroupProperty(nameof(Post.BlogId))));
 }
 ```
-During `SaveChanges` (including Added):
+Durante `SaveChanges` (incluindo Added):
 ```csharp
 public override int SaveChanges()
 {
@@ -282,7 +280,7 @@ public override int SaveChanges()
     return changes;
 }
 ```
-Grouped query:
+Consulta agrupada:
 ```csharp
 var blogId = 42;
 var grouped = context.Set<AutoHistory>()
@@ -290,51 +288,51 @@ var grouped = context.Set<AutoHistory>()
     .OrderBy(h => h.ChangedOn)
     .ToList();
 ```
-Fallback: if `WithGroupId` was not enabled or a type did not set `WithGroupProperty`, `GroupId` remains `null`.
+Fallback: se `WithGroupId` não foi habilitado ou um tipo não definiu `WithGroupProperty`, `GroupId` permanece `null`.
 
 ---
-# ChangedHistory format
-`ChangedHistory` is a dictionary: `PropertyName -> string[]`.
-- Added: array with 1 slot (new value)
-- Deleted: array with 1 slot (old value)
-- Modified: array with 2 slots (`[old, new]`)
-Serialized as JSON in `AutoHistory.Changed`.
+# Formato de ChangedHistory
+`ChangedHistory` é um dicionário: `PropertyName -> string[]`.
+- Added: array com 1 posição (novo valor)
+- Deleted: array com 1 posição (valor antigo)
+- Modified: array com 2 posições (`[old, new]`)
+Serializado como JSON em `AutoHistory.Changed`.
 
 ---
-# Changes vs original (Microsoft.EntityFrameworkCore.AutoHistory 6.0.0)
-- Functional support for Added entities (`EnsureAddedHistory`).
-- Additional fields: `UserName`, `ApplicationName`, `GroupId` (optional via configuration).
-- Default size of `Changed` expanded to 8000.
-- New options in `AutoHistoryOptions`: `ApplicationName`, `DateTimeFactory`, `UserNameMaxLength`, `ApplicationNameMaxLength`, `MapApplicationName`, `UseGroupId` and per-type configurations (`ConfigureType`).
-- New JSON format (`ChangedHistory`).
-- `EnsureAutoHistory` can receive `userName` and/or another `DbContext` to persist history.
-- (v9+) API `EnableAutoHistory` now requires the `DbContext` type as a generic parameter.
+# Diferenças vs original (Microsoft.EntityFrameworkCore.AutoHistory 6.0.0)
+- Suporte funcional para entidades Added (`EnsureAddedHistory`).
+- Campos adicionais: `UserName`, `ApplicationName`, `GroupId` (opcional via configuração).
+- Tamanho padrão de `Changed` ampliado para 8000.
+- Novas opções em `AutoHistoryOptions`: `ApplicationName`, `DateTimeFactory`, `UserNameMaxLength`, `ApplicationNameMaxLength`, `MapApplicationName`, `UseGroupId` e configurações por tipo (`ConfigureType`).
+- Novo formato JSON (`ChangedHistory`).
+- `EnsureAutoHistory` pode receber `userName` e/ou outro `DbContext` para persistir histórico.
+- (v9+) API `EnableAutoHistory` agora exige o tipo `DbContext` como parâmetro genérico.
 
 ---
-# Migration tip (from older non-generic EnableAutoHistory)
-1. Add the context type: `modelBuilder.EnableAutoHistory<BloggingContext>();`
-2. For custom type: `modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(opts => { ... });`
-3. Verify if any old internal documentation snippet still uses the old form.
-4. Recreate migrations if the change comes with new columns (e.g., `GroupId`).
+# Dica de migração (de EnableAutoHistory não genérico antigo)
+1. Adicione o tipo do contexto: `modelBuilder.EnableAutoHistory<BloggingContext>();`
+2. Para tipo customizado: `modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(opts => { ... });`
+3. Verifique se algum snippet antigo interno ainda usa a forma antiga.
+4. Recrie migrations se a mudança vier com novas colunas (ex.: `GroupId`).
 
 ---
-# Example summary
-| Scenario | Snippet |
-|----------|---------|
-| Basic | `modelBuilder.EnableAutoHistory<BloggingContext>();` |
-| With options | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.WithGroupId());` |
-| Custom entity | `modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(o => { });` |
-| Application name | `modelBuilder.EnableAutoHistory<BloggingContext>("AppName");` |
-| Disable AppName column | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.MapApplicationName = false);` |
-| GroupId + per type | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.WithGroupId().ConfigureType<Blog>(t=>t.WithGroupProperty(nameof(Blog.BlogId))));` |
+# Resumo de exemplos
+| Cenário | Trecho |
+|----------|--------|
+| Básico | `modelBuilder.EnableAutoHistory<BloggingContext>();` |
+| Com opções | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.WithGroupId());` |
+| Entidade personalizada | `modelBuilder.EnableAutoHistory<BloggingContext, CustomAutoHistory>(o => { });` |
+| Nome da aplicação | `modelBuilder.EnableAutoHistory<BloggingContext>("AppName");` |
+| Desabilitar coluna AppName | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.MapApplicationName = false);` |
+| GroupId + por tipo | `modelBuilder.EnableAutoHistory<BloggingContext>(o => o.WithGroupId().ConfigureType<Blog>(t=>t.WithGroupProperty(nameof(Blog.BlogId))));` |
 
 ---
-# Glossary
-- EnsureAutoHistory: Generates history for Modified/Deleted before `SaveChanges`.
-- EnsureAddedHistory: Generates history for Added after `SaveChanges` (when keys are available).
-- GroupId: Optional field to group history of related entities.
-- ChangedHistory: Structure used to store the changes (JSON).
+# Glossário
+- EnsureAutoHistory: Gera histórico para Modified/Deleted antes de `SaveChanges`.
+- EnsureAddedHistory: Gera histórico para Added após `SaveChanges` (quando chaves estão disponíveis).
+- GroupId: Campo opcional para agrupar histórico de entidades relacionadas.
+- ChangedHistory: Estrutura usada para armazenar as mudanças (JSON).
 
 ---
-# License
-(Add license information here, if applicable)
+# Licença
+(Adicionar informação de licença aqui, se aplicável)

@@ -12,6 +12,6 @@ public class GenericBloggingContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.EnableAutoHistory<CustomAutoHistory>(o => { });
+        modelBuilder.EnableAutoHistory<GenericBloggingContext, CustomAutoHistory>(o => { });
     }
 }
